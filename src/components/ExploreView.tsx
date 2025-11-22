@@ -4,19 +4,24 @@ import type { StoryMeta } from "../types";
 import { fetchStories } from "../api/storiesApi";
 import { StoryCard } from "./StoryCard";
 import { ExploreFilters } from "./ExploreFilters";
+import type { AdultFilter } from "./StoryFilters";
 
 interface ExploreViewProps {
   onSelectStory: (id: string) => void;
+  onSelectFranchise: (franchise: string) => void;
 }
 
 type SortOption = "newest" | "oldest" | "longFirst" | "shortFirst";
 
-export const ExploreView: React.FC<ExploreViewProps> = ({ onSelectStory }) => {
+export const ExploreView: React.FC<ExploreViewProps> = ({
+  onSelectStory,
+  onSelectFranchise
+}) => {
   const [stories, setStories] = useState<StoryMeta[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [hideAdult, setHideAdult] = useState(false);
+  const [adultFilter, setAdultFilter] = useState<AdultFilter>("all");
   const [selectedFranchise, setSelectedFranchise] = useState<string>("all");
   const [selectedMood, setSelectedMood] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
@@ -37,7 +42,6 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ onSelectStory }) => {
     };
   }, []);
 
-  // Build facet lists
   const franchises = useMemo(
     () =>
       Array.from(new Set(stories.map((s) => s.franchise)))
@@ -59,12 +63,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ onSelectStory }) => {
     [stories]
   );
 
-  // Filtering + sorting
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
 
     let result = stories.filter((story) => {
-      if (hideAdult && story.is_adult) return false;
+      if (adultFilter === "hide" && story.is_adult) return false;
+      if (adultFilter === "adultOnly" && !story.is_adult) return false;
 
       if (selectedFranchise !== "all" && story.franchise !== selectedFranchise) {
         return false;
@@ -86,11 +90,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ onSelectStory }) => {
       );
     });
 
-    // sort
     const lengthWeight = (len: StoryMeta["length"]) => {
       if (len === "long") return 3;
       if (len === "medium") return 2;
-      return 1; // short
+      return 1;
     };
 
     result = result.slice().sort((a, b) => {
@@ -117,7 +120,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ onSelectStory }) => {
   }, [
     stories,
     searchTerm,
-    hideAdult,
+    adultFilter,
     selectedFranchise,
     selectedMood,
     sortBy
@@ -134,8 +137,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ onSelectStory }) => {
       <ExploreFilters
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        hideAdult={hideAdult}
-        onHideAdultChange={setHideAdult}
+        adultFilter={adultFilter}
+        onAdultFilterChange={setAdultFilter}
         franchises={franchises}
         selectedFranchise={selectedFranchise}
         onFranchiseChange={setSelectedFranchise}
@@ -159,6 +162,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ onSelectStory }) => {
               key={story.id}
               story={story}
               onClick={() => onSelectStory(story.id)}
+              onFranchiseClick={onSelectFranchise}
             />
           ))}
         </div>

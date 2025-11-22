@@ -1,12 +1,13 @@
 // src/components/ExploreFilters.tsx
 import React from "react";
+import type { AdultFilter } from "./StoryFilters";
 
 interface ExploreFiltersProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
 
-  hideAdult: boolean;
-  onHideAdultChange: (value: boolean) => void;
+  adultFilter: AdultFilter;
+  onAdultFilterChange: (value: AdultFilter) => void;
 
   franchises: string[];
   selectedFranchise: string;
@@ -23,8 +24,8 @@ interface ExploreFiltersProps {
 export const ExploreFilters: React.FC<ExploreFiltersProps> = ({
   searchTerm,
   onSearchChange,
-  hideAdult,
-  onHideAdultChange,
+  adultFilter,
+  onAdultFilterChange,
   franchises,
   selectedFranchise,
   onFranchiseChange,
@@ -36,7 +37,7 @@ export const ExploreFilters: React.FC<ExploreFiltersProps> = ({
 }) => {
   return (
     <div className="explore-filters">
-      {/* Top row: search + adult toggle */}
+      {/* Top row: search + adult filter */}
       <div className="filters-bar">
         <input
           className="filters-search"
@@ -45,14 +46,18 @@ export const ExploreFilters: React.FC<ExploreFiltersProps> = ({
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
         />
-        <label className="filters-toggle">
-          <input
-            type="checkbox"
-            checked={hideAdult}
-            onChange={(e) => onHideAdultChange(e.target.checked)}
-          />
-          <span>Hide adult stories</span>
-        </label>
+
+        <select
+          className="filter-select"
+          value={adultFilter}
+          onChange={(e) =>
+            onAdultFilterChange(e.target.value as AdultFilter)
+          }
+        >
+          <option value="all">All content</option>
+          <option value="hide">Hide adult</option>
+          <option value="adultOnly">Adult only</option>
+        </select>
       </div>
 
       {/* Second row: franchise + mood + sort */}
@@ -87,7 +92,9 @@ export const ExploreFilters: React.FC<ExploreFiltersProps> = ({
           className="filter-select"
           value={sortBy}
           onChange={(e) =>
-            onSortChange(e.target.value as "newest" | "oldest" | "longFirst" | "shortFirst")
+            onSortChange(
+              e.target.value as "newest" | "oldest" | "longFirst" | "shortFirst"
+            )
           }
         >
           <option value="newest">Sort: Newest first</option>

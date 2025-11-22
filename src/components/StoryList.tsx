@@ -2,18 +2,23 @@
 import React, { useEffect, useState } from "react";
 import type { StoryMeta } from "../types";
 import { StoryFilters } from "./StoryFilters";
+import type { AdultFilter } from "./StoryFilters";
 import { StoryCard } from "./StoryCard";
 import { fetchStories } from "../api/storiesApi";
 
 interface StoryListProps {
   onSelectStory: (id: string) => void;
+  onSelectFranchise?: (franchise: string) => void;
 }
 
-export const StoryList: React.FC<StoryListProps> = ({ onSelectStory }) => {
+export const StoryList: React.FC<StoryListProps> = ({
+  onSelectStory,
+  onSelectFranchise
+}) => {
   const [stories, setStories] = useState<StoryMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [hideAdult, setHideAdult] = useState(false);
+  const [adultFilter, setAdultFilter] = useState<AdultFilter>("all");
 
   useEffect(() => {
     let isMounted = true;
@@ -32,7 +37,8 @@ export const StoryList: React.FC<StoryListProps> = ({ onSelectStory }) => {
   }, []);
 
   const filtered = stories.filter((story) => {
-    if (hideAdult && story.is_adult) return false;
+    if (adultFilter === "hide" && story.is_adult) return false;
+    if (adultFilter === "adultOnly" && !story.is_adult) return false;
 
     if (!searchTerm.trim()) return true;
 
@@ -49,8 +55,8 @@ export const StoryList: React.FC<StoryListProps> = ({ onSelectStory }) => {
       <StoryFilters
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        hideAdult={hideAdult}
-        onHideAdultChange={setHideAdult}
+        adultFilter={adultFilter}
+        onAdultFilterChange={setAdultFilter}
       />
 
       {loading ? (
@@ -64,6 +70,7 @@ export const StoryList: React.FC<StoryListProps> = ({ onSelectStory }) => {
               key={story.id}
               story={story}
               onClick={() => onSelectStory(story.id)}
+              onFranchiseClick={onSelectFranchise}
             />
           ))}
         </div>

@@ -3,7 +3,7 @@ import React from "react";
 import { useAuth } from "../context/AuthContext";
 
 interface LayoutProps {
-    currentView: "home" | "explore" | "create";
+    currentView: "home" | "explore" | "create" | "franchise";
     onNavigate: (view: "home" | "explore" | "create") => void;
     children: React.ReactNode;
 }

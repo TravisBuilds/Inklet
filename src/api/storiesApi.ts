@@ -24,20 +24,22 @@ function mapStoryRow(row: any): StoryMeta {
 }
 
 export async function fetchStories(): Promise<StoryMeta[]> {
-  const { data, error } = await supabase
-    .from("stories")
-    .select(
-      "id, title, franchise, category, is_adult, length, tags, mood_categories, synopsis, created_at, upvotes"
-    )
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching stories:", error);
-    return [];
+    const { data, error } = await supabase
+      .from("stories")
+      .select(
+        "id, title, franchise, category, is_adult, length, tags, mood_categories, synopsis, created_at, upvotes"
+      )
+      .order("created_at", { ascending: false });
+  
+    console.log("fetchStories result:", { data, error });
+  
+    if (error) {
+      console.error("Error fetching stories:", error);
+      return [];
+    }
+  
+    return (data ?? []).map(mapStoryRow);
   }
-
-  return (data ?? []).map(mapStoryRow);
-}
 
 export async function fetchStoryById(id: string): Promise<StoryDetail | null> {
   const { data, error } = await supabase
@@ -116,3 +118,4 @@ export async function upvoteStory(id: string): Promise<void> {
   // TODO: wire into story_upvotes table + increment on server
   console.log("upvoteStory not yet implemented, story id:", id);
 }
+

@@ -1,18 +1,21 @@
 // src/components/StoryFilters.tsx
 import React from "react";
 
+export type AdultFilter = "all" | "hide" | "adultOnly";
+
 interface StoryFiltersProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
-  hideAdult: boolean;
-  onHideAdultChange: (value: boolean) => void;
+
+  adultFilter: AdultFilter;
+  onAdultFilterChange: (value: AdultFilter) => void;
 }
 
 export const StoryFilters: React.FC<StoryFiltersProps> = ({
   searchTerm,
   onSearchChange,
-  hideAdult,
-  onHideAdultChange
+  adultFilter,
+  onAdultFilterChange
 }) => {
   return (
     <div className="filters-bar">
@@ -23,14 +26,18 @@ export const StoryFilters: React.FC<StoryFiltersProps> = ({
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
       />
-      <label className="filters-toggle">
-        <input
-          type="checkbox"
-          checked={hideAdult}
-          onChange={(e) => onHideAdultChange(e.target.checked)}
-        />
-        <span>Hide adult stories</span>
-      </label>
+
+      <select
+        className="filter-select"
+        value={adultFilter}
+        onChange={(e) =>
+          onAdultFilterChange(e.target.value as AdultFilter)
+        }
+      >
+        <option value="all">All content</option>
+        <option value="hide">Hide adult</option>
+        <option value="adultOnly">Adult only</option>
+      </select>
     </div>
   );
 };

@@ -21,7 +21,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 <div className="inklet-header-left">
                     <div className="inklet-logo">
                         <img
-                            src="/src/assets/logo.png"
+                            src="/logo.png"
                             alt="Inklet Logo"
                             style={{ height: "104px", marginRight: "0.5rem" }}
                         />

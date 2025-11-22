@@ -1,35 +1,37 @@
 // src/components/StoryReader.tsx
+
 import React, { useEffect, useState } from "react";
-import type { StoryDetail, Comment } from "../types";
-import { fetchStoryById, fetchComments, postComment } from "../api/storiesApi";
-import { useAuth } from "../context/AuthContext";
-import { CommentList } from "./CommentList";
-import { CommentForm } from "./CommentForm";
-import { PaywallModal } from "./PaywallModal";
+import type { StoryMeta, StoryDetail } from "../types";
+import { fetchStoryById, fetchStories } from "../api/storiesApi";
+import { RecommendedStories } from "./RecommendedStories";
+import { storySimilarity } from "../utils/storySimilarity";
 
 interface StoryReaderProps {
   storyId: string;
   onBack: () => void;
+  onSelectStory?: (id: string) => void;
 }
 
-export const StoryReader: React.FC<StoryReaderProps> = ({ storyId, onBack }) => {
+export const StoryReader: React.FC<StoryReaderProps> = ({
+  storyId,
+  onBack,
+  onSelectStory = () => {}
+}) => {
   const [story, setStory] = useState<StoryDetail | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showPaywall, setShowPaywall] = useState(false);
 
-  const { hasAdultAccess } = useAuth();
+  const [allStories, setAllStories] = useState<StoryMeta[]>([]);
+  const [recommended, setRecommended] = useState<StoryMeta[]>([]);
 
+  // Load the story being read
   useEffect(() => {
     let isMounted = true;
 
     const load = async () => {
       setLoading(true);
-      const s = await fetchStoryById(storyId);
-      const c = await fetchComments(storyId);
+      const data = await fetchStoryById(storyId);
       if (isMounted) {
-        setStory(s);
-        setComments(c);
+        setStory(data);
         setLoading(false);
       }
     };
@@ -40,98 +42,76 @@ export const StoryReader: React.FC<StoryReaderProps> = ({ storyId, onBack }) => 
     };
   }, [storyId]);
 
-  const handleCommentSubmit = async (content: string, userName: string) => {
-    const newComment = await postComment(storyId, userName, content);
-    if (newComment) {
-      setComments((prev) => [...prev, newComment]);
-    }
-  };
+  // Load all stories for recommendations
+  useEffect(() => {
+    const loadAll = async () => {
+      const data = await fetchStories();
+      setAllStories(data);
+    };
+    loadAll();
+  }, []);
 
-  if (loading) {
+  // Compute recommendations anytime story or allStories changes
+  useEffect(() => {
+    if (!story || allStories.length === 0) return;
+
+    const others = allStories.filter((s) => s.id !== story.id);
+
+    const scored = others
+      .map((s) => ({
+        story: s,
+        score: storySimilarity(story, s)
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map((x) => x.story);
+
+    setRecommended(scored);
+  }, [story, allStories]);
+
+  if (loading || !story) {
     return (
       <div className="story-reader">
         <button className="link-btn" onClick={onBack}>
-          ← Back to stories
+          ← Back
         </button>
         <p className="muted">Loading story…</p>
       </div>
     );
   }
 
-  if (!story) {
-    return (
-      <div className="story-reader">
-        <button className="link-btn" onClick={onBack}>
-          ← Back to stories
-        </button>
-        <p className="muted">Story not found.</p>
-      </div>
-    );
-  }
-
-  const isAdultLocked = story.is_adult && !hasAdultAccess;
-
-  // Use this for preview: first few paragraphs only
-  const paragraphs = story.content.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-  const previewParagraphs = paragraphs.slice(0, 3); // show first 3 paras as teaser
-
   return (
     <div className="story-reader">
       <button className="link-btn" onClick={onBack}>
-        ← Back to stories
+        ← Back
       </button>
 
-      <h1 className="story-title">{story.title}</h1>
+      <h1 className="reader-title">{story.title}</h1>
 
-      <p className="story-meta">
-        Inklet Original · {story.franchise} · {story.length}
-        {story.is_adult && " · Adult"}
-      </p>
-
-      {story.moodCategories.length > 0 && (
-        <p className="story-moods">
-          Mood: {story.moodCategories.join(" · ")}
-        </p>
-      )}
-
-      {story.tags.length > 0 && (
-        <p className="story-characters">
-          Characters: {story.tags.join(" · ")}
-        </p>
-      )}
+      <div className="reader-meta">
+        <span className="pill">{story.franchise}</span>
+        {story.is_adult && <span className="badge badge-adult">18+</span>}
+        <span className="pill pill-length">{story.length}</span>
+      </div>
 
       {story.synopsis && (
-        <p className="story-synopsis">{story.synopsis}</p>
-      )}
-
-      {isAdultLocked && (
-        <div className="adult-preview">
-          <p>
-            This is an adult story. You’re seeing only a preview. Unlock adult
-            access to read the full story and other adult content on Inklet.
-          </p>
-          <button
-            className="pill-btn"
-            onClick={() => setShowPaywall(true)}
-          >
-            Unlock Adult Access
-          </button>
+        <div className="reader-synopsis">
+          <h3>Synopsis</h3>
+          <p>{story.synopsis}</p>
         </div>
       )}
 
-      <div className="story-body">
-        {(isAdultLocked ? previewParagraphs : paragraphs).map((para, idx) => (
-          <p key={idx}>{para}</p>
+      <article className="reader-content">
+        {story.content.split("\n").map((line, i) => (
+          <p key={i}>{line.trim()}</p>
         ))}
-      </div>
+      </article>
 
-      <section className="story-comments">
-        <h2>Comments</h2>
-        <CommentList comments={comments} />
-        <CommentForm onSubmit={handleCommentSubmit} />
-      </section>
-
-      {showPaywall && <PaywallModal onClose={() => setShowPaywall(false)} />}
+      {/* Recommended stories */}
+      <RecommendedStories
+        stories={recommended}
+        onSelectStory={onSelectStory}
+      />
     </div>
   );
 };

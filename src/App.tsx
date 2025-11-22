@@ -2,11 +2,10 @@
 import React, { useState } from "react";
 import { Layout } from "./components/Layout";
 import { StoryReader } from "./components/StoryReader";
-import { AiPromptBuilder } from "./components/AiPromptBuilder";
 import { ExploreView } from "./components/ExploreView";
 import { HomeView } from "./components/HomeView";
 import { FranchiseView } from "./components/FranchiseView";
-// (StoryList is no longer used here, but can be kept for later if you want)
+import { CreateView } from "./components/CreateView";
 
 type View = "home" | "explore" | "create" | "franchise";
 
@@ -27,7 +26,7 @@ const App: React.FC = () => {
 
   const handleBackFromFranchise = () => {
     setActiveFranchise(null);
-    setCurrentView("explore"); // or "home" if you prefer
+    setCurrentView("explore");
   };
 
   return (
@@ -35,7 +34,7 @@ const App: React.FC = () => {
       {selectedStoryId ? (
         <StoryReader storyId={selectedStoryId} onBack={handleBackFromReader} />
       ) : currentView === "create" ? (
-        <AiPromptBuilder />
+        <CreateView onStoryCreated={setSelectedStoryId} />
       ) : currentView === "explore" ? (
         <ExploreView
           onSelectStory={setSelectedStoryId}

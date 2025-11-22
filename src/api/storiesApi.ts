@@ -1,6 +1,62 @@
 // src/api/storiesApi.ts
 import type { StoryMeta, StoryDetail, Comment } from "../types";
 import { supabase } from "../lib/supabaseClient";
+import { inferLengthFromContent } from "../utils/storyLength";
+
+interface CreateUserStoryInput {
+    title: string;
+    franchise: string;
+    synopsis: string;
+    content: string;
+    isAdult: boolean;
+    moodCategories: string[];
+    tags: string[];
+  }
+  
+  export async function createUserStory(
+    input: CreateUserStoryInput
+  ): Promise<StoryMeta | null> {
+    const length = inferLengthFromContent(input.content);
+  
+    const { data, error } = await supabase
+      .from("stories")
+      .insert({
+        title: input.title,
+        franchise: input.franchise,
+        synopsis: input.synopsis,
+        content: input.content,
+        is_adult: input.isAdult,
+        mood_categories: input.moodCategories,
+        tags: input.tags,
+        length,
+        // category: null // optional, or infer later
+      })
+      .select(
+        "id, title, franchise, category, is_adult, length, tags, mood_categories, synopsis, created_at, upvotes"
+      )
+      .single();
+  
+    if (error || !data) {
+      console.error("Error creating user story:", error);
+      return null;
+    }
+  
+    const story: StoryMeta = {
+      id: data.id,
+      title: data.title,
+      franchise: data.franchise,
+      category: data.category,
+      is_adult: data.is_adult,
+      length: data.length,
+      tags: data.tags ?? [],
+      moodCategories: data.mood_categories ?? [],
+      synopsis: data.synopsis ?? "",
+      createdAt: data.created_at,
+      upvotes: data.upvotes ?? 0
+    };
+  
+    return story;
+  }
 
 function mapStoryRow(row: any): StoryMeta {
   return {

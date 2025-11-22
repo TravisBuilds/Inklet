@@ -3,73 +3,97 @@ import React from "react";
 import { useAuth } from "../context/AuthContext";
 
 interface LayoutProps {
-    currentView: "home" | "explore" | "create" | "franchise";
-    onNavigate: (view: "home" | "explore" | "create") => void;
-    children: React.ReactNode;
+  currentView: "home" | "explore" | "create" | "franchise";
+  onNavigate: (view: "home" | "explore" | "create") => void;
+  children: React.ReactNode;
 }
 
 export const Layout: React.FC<LayoutProps> = ({
-    currentView,
-    onNavigate,
-    children
+  currentView,
+  onNavigate,
+  children
 }) => {
-    const { isAuthenticated, hasAdultAccess, login, logout } = useAuth();
+  const { user, hasAdultAccess, loading, signInWithMagicLink, signOut } =
+    useAuth();
 
-    return (
-        <div className="inklet-root">
-            <header className="inklet-header">
-                <div className="inklet-header-left">
-                    <div className="inklet-logo">
-                        <img
-                            src="/logo.png"
-                            alt="Inklet Logo"
-                            style={{ height: "104px", marginRight: "0.5rem" }}
-                        />
-                    </div>
+  const handleSignIn = async () => {
+    const email = window.prompt("Enter your email for a login link:");
+    if (!email) return;
+    try {
+      await signInWithMagicLink(email.trim());
+      alert("Check your email for the login link.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to send login link.");
+    }
+  };
 
-                    <nav className="inklet-nav">
-                        <button
-                            className={currentView === "home" ? "nav-btn active" : "nav-btn"}
-                            onClick={() => onNavigate("home")}
-                        >
-                            Home
-                        </button>
-                        <button
-                            className={currentView === "explore" ? "nav-btn active" : "nav-btn"}
-                            onClick={() => onNavigate("explore")}
-                        >
-                            Explore
-                        </button>
-                        <button
-                            className={currentView === "create" ? "nav-btn active" : "nav-btn"}
-                            onClick={() => onNavigate("create")}
-                        >
-                            Create with AI
-                        </button>
-                    </nav>
-                </div>
+  const isActive = (view: "home" | "explore" | "create") =>
+    currentView === view ? "nav-tab nav-tab-active" : "nav-tab";
 
-                <div className="inklet-header-right">
-                    {isAuthenticated ? (
-                        <>
-                            {hasAdultAccess ? (
-                                <span className="badge badge-subbed">Adult access</span>
-                            ) : (
-                                <span className="badge">Free tier</span>
-                            )}
-                            <button className="pill-btn secondary" onClick={logout}>
-                                Logout
-                            </button>
-                        </>
-                    ) : (
-                        <button className="pill-btn" onClick={login}>
-                            Log in
-                        </button>
-                    )}
-                </div>
-            </header>
+  return (
+    <div className="inklet-root">
+      <header className="inklet-header">
+        <div className="inklet-header-left">
+          <div className="inklet-logo">
+            <img
+              src="/logo.png"
+              alt="Inklet Logo"
+              style={{ height: "94px", marginRight: "0.75rem" }}
+            />
+          
+          </div>
 
-            <main className="inklet-main">{children}</main>
+          <nav className="inklet-nav">
+            <button
+              className={isActive("home")}
+              onClick={() => onNavigate("home")}
+            >
+              Home
+            </button>
+            <button
+              className={isActive("explore")}
+              onClick={() => onNavigate("explore")}
+            >
+              Explore
+            </button>
+            <button
+              className={isActive("create")}
+              onClick={() => onNavigate("create")}
+            >
+              Create with AI
+            </button>
+          </nav>
         </div>
-    );
+
+        <div className="inklet-header-right">
+          {!loading && user && (
+            <div className="auth-status">
+              <span className="muted small">
+                {user.email ?? "Signed in"}
+                {" · "}
+                Adult:{" "}
+                {hasAdultAccess ? (
+                  <span className="badge badge-ok">Active</span>
+                ) : (
+                  <span className="badge badge-muted">Locked</span>
+                )}
+              </span>
+              <button className="link-btn" onClick={signOut}>
+                Sign out
+              </button>
+            </div>
+          )}
+
+          {!loading && !user && (
+            <button className="pill-btn pill-btn-ghost" onClick={handleSignIn}>
+              Sign in
+            </button>
+          )}
+        </div>
+      </header>
+
+      <main className="inklet-main">{children}</main>
+    </div>
+  );
 };

@@ -1,4 +1,5 @@
 // src/App.tsx
+
 import React, { useState } from "react";
 import { Layout } from "./components/Layout";
 import { StoryReader } from "./components/StoryReader";
@@ -26,11 +27,20 @@ const App: React.FC = () => {
 
   const handleBackFromFranchise = () => {
     setActiveFranchise(null);
-    setCurrentView("explore");
+    setCurrentView("explore"); // or "home" if you prefer
+  };
+
+  // 🔑 Centralized navigation handler
+  const handleNavigate = (view: "home" | "explore" | "create") => {
+    // Leaving the reader when you change top-level view
+    setSelectedStoryId(null);
+    // Clear franchise view when navigating to top-level views
+    setActiveFranchise(null);
+    setCurrentView(view);
   };
 
   return (
-    <Layout currentView={currentView} onNavigate={setCurrentView}>
+    <Layout currentView={currentView} onNavigate={handleNavigate}>
       {selectedStoryId ? (
         <StoryReader storyId={selectedStoryId} onBack={handleBackFromReader} />
       ) : currentView === "create" ? (

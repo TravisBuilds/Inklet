@@ -1,77 +1,91 @@
-// src/context/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
-interface User {
+interface Profile {
   id: string;
-  name: string;
+  subscription_status: string | null;
+  adult_access_until: string | null;
 }
 
 interface AuthContextValue {
-  user: User | null;
-  isAuthenticated: boolean;
+  user: any | null;
+  profile: Profile | null;
+  loading: boolean;
   hasAdultAccess: boolean;
-  login: () => void;
-  logout: () => void;
-  grantAdultAccess: () => void;
+  signInWithMagicLink: (email: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const LOCAL_KEY_ADULT = "inklet.hasAdultAccess";
-const LOCAL_KEY_USER = "inklet.user";
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children
 }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [hasAdultAccess, setHasAdultAccess] = useState(false);
+  const [user, setUser] = useState<any | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Restore from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedAdult = localStorage.getItem(LOCAL_KEY_ADULT);
-      if (savedAdult === "true") {
-        setHasAdultAccess(true);
-      }
-      const savedUser = localStorage.getItem(LOCAL_KEY_USER);
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser) as User;
-        setUser(parsed);
-      }
-    } catch {
-      // ignore
+  const loadProfile = async (u: any | null) => {
+    if (!u) {
+      setProfile(null);
+      return;
     }
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, subscription_status, adult_access_until")
+      .eq("id", u.id)
+      .maybeSingle();
+    setProfile(
+      data ?? {
+        id: u.id,
+        subscription_status: "none",
+        adult_access_until: null
+      }
+    );
+  };
+
+  useEffect(() => {
+    const session = supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+      setLoading(false);
+      loadProfile(data.session?.user ?? null);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        loadProfile(session?.user ?? null);
+      }
+    );
+
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
   }, []);
 
-  const login = () => {
-    // Stub: later replace with real Supabase auth
-    const demoUser: User = { id: "demo-user", name: "Inklet Reader" };
-    setUser(demoUser);
-    localStorage.setItem(LOCAL_KEY_USER, JSON.stringify(demoUser));
+  const signInWithMagicLink = async (email: string) => {
+    await supabase.auth.signInWithOtp({ email });
   };
 
-  const logout = () => {
-    setUser(null);
-    setHasAdultAccess(false);
-    localStorage.removeItem(LOCAL_KEY_USER);
-    localStorage.removeItem(LOCAL_KEY_ADULT);
+  const signOut = async () => {
+    await supabase.auth.signOut();
   };
 
-  const grantAdultAccess = () => {
-    // Stub: in the future this is where you’d call your backend after Stripe/crypto success
-    setHasAdultAccess(true);
-    localStorage.setItem(LOCAL_KEY_ADULT, "true");
-  };
+  const hasAdultAccess = (() => {
+    if (!profile?.adult_access_until) return false;
+    const expiry = new Date(profile.adult_access_until).getTime();
+    return expiry > Date.now();
+  })();
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        profile,
+        loading,
         hasAdultAccess,
-        login,
-        logout,
-        grantAdultAccess
+        signInWithMagicLink,
+        signOut
       }}
     >
       {children}
@@ -79,8 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-export function useAuth(): AuthContextValue {
+export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
-}
+};

@@ -579,3 +579,45 @@ body {
   color: #15803d;
   font-size: 0.8rem;
 }
+/* Top nav container */
+.inklet-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+/* Base nav tab style */
+.nav-tab {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.6rem 1.8rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #4b5563; /* slate-600 */
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.12s ease;
+}
+
+.nav-tab:hover {
+  background-color: #f3f4f6; /* gray-100 */
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+/* Active tab (the dark pill) */
+.nav-tab-active {
+  background-color: #020617; /* slate-950 */
+  color: #f9fafb; /* gray-50 */
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+}
+
+/* Focus outline */
+.nav-tab:focus-visible {
+  outline: 2px solid #2563eb; /* blue-600 */
+  outline-offset: 2px;
+}

@@ -45,7 +45,7 @@ const App: React.FC = () => {
   <StoryReader
     storyId={selectedStoryId}
     onBack={handleBackFromReader}
-    onSelectStory={setSelectedStoryId}   // 👈 add this
+    onSelectStory={setSelectedStoryId}   
   />
 ) : currentView === "create" ? (
   <CreateView onStoryCreated={setSelectedStoryId} />

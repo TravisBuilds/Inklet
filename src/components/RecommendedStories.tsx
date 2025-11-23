@@ -14,6 +14,17 @@ export const RecommendedStories: React.FC<RecommendedStoriesProps> = ({
 }) => {
   if (!stories.length) return null;
 
+  const handleStoryClick = (storyId: string) => {
+    console.log("[RecommendedStories] Story clicked:", storyId);
+    console.log("[RecommendedStories] onSelectStory function:", typeof onSelectStory);
+    try {
+      onSelectStory(storyId);
+      console.log("[RecommendedStories] onSelectStory called successfully");
+    } catch (error) {
+      console.error("[RecommendedStories] Error calling onSelectStory:", error);
+    }
+  };
+
   return (
     <section className="recommended-section">
       <h2 className="section-title">You may also like</h2>
@@ -23,7 +34,7 @@ export const RecommendedStories: React.FC<RecommendedStoriesProps> = ({
           <StoryCard
             key={story.id}
             story={story}
-            onClick={() => onSelectStory(story.id)}
+            onClick={() => handleStoryClick(story.id)}
           />
         ))}
       </div>

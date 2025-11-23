@@ -42,26 +42,31 @@ const App: React.FC = () => {
   return (
     <Layout currentView={currentView} onNavigate={handleNavigate}>
       {selectedStoryId ? (
-        <StoryReader storyId={selectedStoryId} onBack={handleBackFromReader} />
-      ) : currentView === "create" ? (
-        <CreateView onStoryCreated={setSelectedStoryId} />
-      ) : currentView === "explore" ? (
-        <ExploreView
-          onSelectStory={setSelectedStoryId}
-          onSelectFranchise={handleSelectFranchise}
-        />
-      ) : currentView === "franchise" && activeFranchise ? (
-        <FranchiseView
-          franchise={activeFranchise}
-          onSelectStory={setSelectedStoryId}
-          onBack={handleBackFromFranchise}
-        />
-      ) : (
-        <HomeView
-          onSelectStory={setSelectedStoryId}
-          onSelectFranchise={handleSelectFranchise}
-        />
-      )}
+  <StoryReader
+    storyId={selectedStoryId}
+    onBack={handleBackFromReader}
+    onSelectStory={setSelectedStoryId}   // 👈 add this
+  />
+) : currentView === "create" ? (
+  <CreateView onStoryCreated={setSelectedStoryId} />
+) : currentView === "explore" ? (
+  <ExploreView
+    onSelectStory={setSelectedStoryId}
+    onSelectFranchise={handleSelectFranchise}
+  />
+) : currentView === "franchise" && activeFranchise ? (
+  <FranchiseView
+    franchise={activeFranchise}
+    onSelectStory={setSelectedStoryId}
+    onBack={handleBackFromFranchise}
+  />
+) : (
+  <HomeView
+    onSelectStory={setSelectedStoryId}
+    onSelectFranchise={handleSelectFranchise}
+  />
+)}
+
     </Layout>
   );
 };

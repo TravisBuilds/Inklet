@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchStories } from "../api/storiesApi";
 import type { StoryMeta } from "../types";
+import type { AdultFilter } from "./StoryFilters";
 import { StoryCard } from "./StoryCard";
 
 interface ExploreViewProps {
@@ -27,7 +28,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const [stories, setStories] = useState<StoryMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [hideAdult, setHideAdult] = useState(false);
+  const [adultFilter, setAdultFilter] = useState<AdultFilter>("all");
   const [selectedFranchiseKey, setSelectedFranchiseKey] = useState<
     string | null
   >(null);
@@ -75,10 +76,15 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
   const filteredStories = useMemo(() => {
     return stories.filter((s) => {
-      if (hideAdult && s.is_adult) {
+      // Adult filter logic
+      if (adultFilter === "hide" && s.is_adult) {
+        return false;
+      }
+      if (adultFilter === "adultOnly" && !s.is_adult) {
         return false;
       }
 
+      // Franchise filter
       if (selectedFranchiseKey) {
         if (!s.franchise) return false;
         if (normalizeFranchiseName(s.franchise) !== selectedFranchiseKey) {
@@ -86,6 +92,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         }
       }
 
+      // Search filter
       if (search.trim()) {
         const q = search.toLowerCase();
         const inTitle = s.title.toLowerCase().includes(q);
@@ -101,7 +108,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
       return true;
     });
-  }, [stories, search, hideAdult, selectedFranchiseKey]);
+  }, [stories, search, adultFilter, selectedFranchiseKey]);
 
   const handleFranchiseChange = (value: string) => {
     const key = value || null;
@@ -125,45 +132,37 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         </p>
       </div>
 
-      <div className="explore-controls">
-        {/* Franchise dropdown */}
-        <div className="control-group">
-          <label className="control-label">Franchise</label>
-          <select
-            className="control-select"
-            value={selectedFranchiseKey ?? ""}
-            onChange={(e) => handleFranchiseChange(e.target.value)}
-          >
-            <option value="">All franchises</option>
-            {franchiseOptions.map((f) => (
-              <option key={f.key} value={f.key}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="filters-bar">
+        <input
+          className="filters-search"
+          type="text"
+          placeholder="Search by title, franchise, or tag"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-        {/* Search */}
-        <div className="control-group control-grow">
-          <label className="control-label">Search</label>
-          <input
-            type="text"
-            className="control-input"
-            placeholder="Search by title, franchise, or tag"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+        <select
+          className="filter-select"
+          value={adultFilter}
+          onChange={(e) => setAdultFilter(e.target.value as AdultFilter)}
+        >
+          <option value="all">All content</option>
+          <option value="hide">Hide adult</option>
+          <option value="adultOnly">Adult only</option>
+        </select>
 
-        {/* Hide adult toggle */}
-        <label className="control-checkbox">
-          <input
-            type="checkbox"
-            checked={hideAdult}
-            onChange={(e) => setHideAdult(e.target.checked)}
-          />
-          <span>Hide adult stories</span>
-        </label>
+        <select
+          className="filter-select"
+          value={selectedFranchiseKey ?? ""}
+          onChange={(e) => handleFranchiseChange(e.target.value)}
+        >
+          <option value="">All franchises</option>
+          {franchiseOptions.map((f) => (
+            <option key={f.key} value={f.key}>
+              {f.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {loading ? (

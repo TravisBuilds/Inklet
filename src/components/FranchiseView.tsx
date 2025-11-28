@@ -1,6 +1,7 @@
 // src/components/FranchiseView.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import type { StoryMeta } from "../types";
+import type { AdultFilter } from "./StoryFilters";
 import { fetchStories } from "../api/storiesApi";
 import { StoryCard } from "./StoryCard";
 
@@ -17,6 +18,7 @@ export const FranchiseView: React.FC<FranchiseViewProps> = ({
 }) => {
   const [stories, setStories] = useState<StoryMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adultFilter, setAdultFilter] = useState<AdultFilter>("all");
 
   useEffect(() => {
     let isMounted = true;
@@ -37,12 +39,21 @@ export const FranchiseView: React.FC<FranchiseViewProps> = ({
   const franchiseStories = useMemo(
     () =>
       stories
-        .filter((s) => s.franchise === franchise)
+        .filter((s) => {
+          // Franchise filter
+          if (s.franchise !== franchise) return false;
+          
+          // Adult filter logic
+          if (adultFilter === "hide" && s.is_adult) return false;
+          if (adultFilter === "adultOnly" && !s.is_adult) return false;
+          
+          return true;
+        })
         .sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ),
-    [stories, franchise]
+    [stories, franchise, adultFilter]
   );
 
   return (
@@ -55,6 +66,18 @@ export const FranchiseView: React.FC<FranchiseViewProps> = ({
       <p className="muted">
         All Inklet stories set in the {franchise} universe.
       </p>
+
+      <div className="filters-bar">
+        <select
+          className="filter-select"
+          value={adultFilter}
+          onChange={(e) => setAdultFilter(e.target.value as AdultFilter)}
+        >
+          <option value="all">All content</option>
+          <option value="hide">Hide adult</option>
+          <option value="adultOnly">Adult only</option>
+        </select>
+      </div>
 
       {loading ? (
         <p className="muted">Loading franchise stories…</p>

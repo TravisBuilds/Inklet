@@ -1,17 +1,24 @@
 // src/components/ExploreView.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import type { StoryMeta } from "../types";
 import { fetchStories } from "../api/storiesApi";
+import type { StoryMeta } from "../types";
 import { StoryCard } from "./StoryCard";
-import { ExploreFilters } from "./ExploreFilters";
-import type { AdultFilter } from "./StoryFilters";
 
 interface ExploreViewProps {
   onSelectStory: (id: string) => void;
   onSelectFranchise: (franchise: string) => void;
 }
 
-type SortOption = "newest" | "oldest" | "longFirst" | "shortFirst";
+// Normalizes franchise names so variants like
+// "Grey's Anatomy" / "Grey’s Anatomy" / "Gray's Anatomy"
+// all collapse together.
+function normalizeFranchiseName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[’]/g, "'") // curly -> straight apostrophe
+    .replace(/\s+/g, " "); // collapse multiple spaces
+}
 
 export const ExploreView: React.FC<ExploreViewProps> = ({
   onSelectStory,
@@ -19,150 +26,165 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 }) => {
   const [stories, setStories] = useState<StoryMeta[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [adultFilter, setAdultFilter] = useState<AdultFilter>("all");
-  const [selectedFranchise, setSelectedFranchise] = useState<string>("all");
-  const [selectedMood, setSelectedMood] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [search, setSearch] = useState("");
+  const [hideAdult, setHideAdult] = useState(false);
+  const [selectedFranchiseKey, setSelectedFranchiseKey] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
+    let cancelled = false;
+
+    (async () => {
       setLoading(true);
       const data = await fetchStories();
-      if (isMounted) {
+      if (!cancelled) {
         setStories(data);
         setLoading(false);
       }
-    };
-    load();
+    })();
+
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
   }, []);
 
-  const franchises = useMemo(
-    () =>
-      Array.from(new Set(stories.map((s) => s.franchise)))
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b)),
+  // Build deduped franchise list: normalized key -> label
+  const franchiseOptions = useMemo(
+    () => {
+      const map = new Map<string, string>(); // key -> display label
+
+      stories.forEach((s) => {
+        if (!s.franchise) return;
+        const raw = s.franchise.trim();
+        if (!raw) return;
+
+        const key = normalizeFranchiseName(raw);
+        if (!map.has(key)) {
+          // First one wins for display
+          map.set(key, raw);
+        }
+      });
+
+      return Array.from(map.entries())
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .map(([key, label]) => ({ key, label }));
+    },
     [stories]
   );
 
-  const moods = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          stories
-            .flatMap((s) => s.moodCategories || [])
-            .map((m) => m.trim())
-            .filter(Boolean)
-        )
-      ).sort((a, b) => a.localeCompare(b)),
-    [stories]
-  );
-
-  const filtered = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-
-    let result = stories.filter((story) => {
-      if (adultFilter === "hide" && story.is_adult) return false;
-      if (adultFilter === "adultOnly" && !story.is_adult) return false;
-
-      if (selectedFranchise !== "all" && story.franchise !== selectedFranchise) {
+  const filteredStories = useMemo(() => {
+    return stories.filter((s) => {
+      if (hideAdult && s.is_adult) {
         return false;
       }
 
-      if (
-        selectedMood !== "all" &&
-        !(story.moodCategories || []).includes(selectedMood)
-      ) {
-        return false;
+      if (selectedFranchiseKey) {
+        if (!s.franchise) return false;
+        if (normalizeFranchiseName(s.franchise) !== selectedFranchiseKey) {
+          return false;
+        }
       }
 
-      if (!term) return true;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const inTitle = s.title.toLowerCase().includes(q);
+        const inFranchise = (s.franchise ?? "").toLowerCase().includes(q);
+        const inTags = (s.tags ?? [])
+          .join(" ")
+          .toLowerCase()
+          .includes(q);
+        if (!inTitle && !inFranchise && !inTags) {
+          return false;
+        }
+      }
 
-      return (
-        story.title.toLowerCase().includes(term) ||
-        story.franchise.toLowerCase().includes(term) ||
-        story.tags.some((t) => t.toLowerCase().includes(term))
-      );
+      return true;
     });
+  }, [stories, search, hideAdult, selectedFranchiseKey]);
 
-    const lengthWeight = (len: StoryMeta["length"]) => {
-      if (len === "long") return 3;
-      if (len === "medium") return 2;
-      return 1;
-    };
+  const handleFranchiseChange = (value: string) => {
+    const key = value || null;
+    setSelectedFranchiseKey(key);
 
-    result = result.slice().sort((a, b) => {
-      if (sortBy === "newest") {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    // Optionally also notify parent when a specific franchise is chosen
+    if (key) {
+      const match = franchiseOptions.find((f) => f.key === key);
+      if (match) {
+        onSelectFranchise(match.label);
       }
-      if (sortBy === "oldest") {
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      }
-      if (sortBy === "longFirst") {
-        const diff = lengthWeight(b.length) - lengthWeight(a.length);
-        if (diff !== 0) return diff;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      if (sortBy === "shortFirst") {
-        const diff = lengthWeight(a.length) - lengthWeight(b.length);
-        if (diff !== 0) return diff;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      return 0;
-    });
-
-    return result;
-  }, [
-    stories,
-    searchTerm,
-    adultFilter,
-    selectedFranchise,
-    selectedMood,
-    sortBy
-  ]);
+    }
+  };
 
   return (
-    <div className="explore-view">
-      <h1 className="page-title">Explore stories</h1>
-      <p className="muted">
-        Filter by franchise, mood, or characters to find exactly the kind of
-        emotional arc you’re in the mood for.
-      </p>
+    <div className="view-wrapper">
+      <div className="view-header">
+        <h1 className="view-title">Explore stories</h1>
+        <p className="view-subtitle">
+          Browse by franchise, mood, and more.
+        </p>
+      </div>
 
-      <ExploreFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        adultFilter={adultFilter}
-        onAdultFilterChange={setAdultFilter}
-        franchises={franchises}
-        selectedFranchise={selectedFranchise}
-        onFranchiseChange={setSelectedFranchise}
-        moods={moods}
-        selectedMood={selectedMood}
-        onMoodChange={setSelectedMood}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-      />
+      <div className="explore-controls">
+        {/* Franchise dropdown */}
+        <div className="control-group">
+          <label className="control-label">Franchise</label>
+          <select
+            className="control-select"
+            value={selectedFranchiseKey ?? ""}
+            onChange={(e) => handleFranchiseChange(e.target.value)}
+          >
+            <option value="">All franchises</option>
+            {franchiseOptions.map((f) => (
+              <option key={f.key} value={f.key}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Search */}
+        <div className="control-group control-grow">
+          <label className="control-label">Search</label>
+          <input
+            type="text"
+            className="control-input"
+            placeholder="Search by title, franchise, or tag"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Hide adult toggle */}
+        <label className="control-checkbox">
+          <input
+            type="checkbox"
+            checked={hideAdult}
+            onChange={(e) => setHideAdult(e.target.checked)}
+          />
+          <span>Hide adult stories</span>
+        </label>
+      </div>
 
       {loading ? (
         <p className="muted">Loading stories…</p>
-      ) : filtered.length === 0 ? (
+      ) : filteredStories.length === 0 ? (
         <p className="muted">
-          No stories matched those filters. Try widening your search.
+          No stories match your filters yet. Try clearing search or
+          changing the franchise.
         </p>
       ) : (
-        <div className="story-list">
-          {filtered.map((story) => (
+        <div className="story-grid">
+          {filteredStories.map((story) => (
             <StoryCard
               key={story.id}
               story={story}
               onClick={() => onSelectStory(story.id)}
-              onFranchiseClick={onSelectFranchise}
+              onFranchiseClick={
+                story.franchise
+                  ? () => onSelectFranchise(story.franchise!)
+                  : undefined
+              }
             />
           ))}
         </div>

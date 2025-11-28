@@ -79,23 +79,54 @@ function mapStoryRow(row: any): StoryMeta {
   };
 }
 
-export async function fetchStories(): Promise<StoryMeta[]> {
+const PAGE_SIZE = 1000; // Supabase max per request
+
+export async function fetchAllStories(): Promise<StoryMeta[]> {
+  let all: StoryMeta[] = [];
+  let page = 0;
+
+  // loop until no more rows
+  // each iteration grabs the next 1000
+  // 0–999, 1000–1999, 2000–2999, ...
+  // and respects the 1000-row per request limit
+  // but covers the whole table over multiple calls.
+  // order newest first so your latest stories appear first in UIs.
+  while (true) {
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     const { data, error } = await supabase
       .from("stories")
       .select(
         "id, title, franchise, category, is_adult, length, tags, mood_categories, synopsis, created_at, upvotes"
       )
-      .order("created_at", { ascending: false });
-  
-    console.log("fetchStories result:", { data, error });
-  
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
     if (error) {
-      console.error("Error fetching stories:", error);
-      return [];
+      console.error("fetchAllStories error on page", page, error);
+      break;
     }
-  
-    return (data ?? []).map(mapStoryRow);
+
+    if (!data || data.length === 0) {
+      break; // no more rows
+    }
+
+    all = all.concat(data.map(mapStoryRow));
+
+    if (data.length < PAGE_SIZE) {
+      break; // last partial page
+    }
+
+    page += 1;
   }
+
+  console.log("fetchAllStories total:", all.length);
+  return all;
+}
+
+// If other parts of the app import fetchStories, just forward it:
+export const fetchStories = fetchAllStories;
 
 export async function fetchStoryById(id: string): Promise<StoryDetail | null> {
   const { data, error } = await supabase
